@@ -17,13 +17,16 @@ defmodule MrNoisy do
   end
 
   def do_it do
-    get_open_merge_requests_from_gitlab()
+    System.get_env("PROJECT_ID_LIST")
+    |> String.split(",")
+    |> get_open_merge_requests_from_gitlab
+    |> Enum.sort_by(&(Map.get(&1, "created_at")))
     |> format_message_list
     |> format_list_to_single_message
     |> post_to_slack
   end
 
-  def get_open_merge_requests_from_gitlab do
+  def get_open_merge_requests_from_gitlab([x | y]) do
     header = [
       "Private-Token": System.get_env("GITLAB_TOKEN")
     ]
@@ -32,12 +35,18 @@ defmodule MrNoisy do
         state: "opened",
         labels: "Review Me",
         order_by: "created_at",
-        sort: "asc"
+        sort: "asc",
+        per_page: 100,
       }
     ]
 
-    HTTPoison.get("https://gitlab.gds-gov.tech/api/v4/projects/#{System.get_env("PROJECT_ID")}/merge_requests", header, options)
+    HTTPoison.get("https://gitlab.gds-gov.tech/api/v4/projects/#{x}/merge_requests", header, options)
     |> convert_gitlab_api_response
+    |> Kernel.++(get_open_merge_requests_from_gitlab(y))
+  end
+
+  def get_open_merge_requests_from_gitlab([]) do
+    []
   end
 
   def convert_gitlab_api_response({:ok, %HTTPoison.Response{status_code: 200, body: body}}) do
@@ -46,11 +55,11 @@ defmodule MrNoisy do
   end
 
   def convert_gitlab_api_response(_) do
-    IO.puts "error"
+    IO.puts "Error fetching from gitlab"
     []
   end
 
-  def format_message_list([x|y]) do
+  def format_message_list([x | y]) do
     title = Map.get(x, "title", "")
     web_url = Map.get(x, "web_url", "")
     updated_at = Map.get(x, "updated_at", "")
@@ -95,7 +104,7 @@ defmodule MrNoisy do
   end
 
   def format_list_to_single_message(message_list) do
-    message_prefix = "<!channel>\n*Merge Requests awaiting review:*"
+    message_prefix = "<!channel>\n*#{length(message_list)} Merge Requests awaiting review:*"
     "#{message_prefix}\n#{Enum.join(message_list, "\n\n")}"
   end
 
