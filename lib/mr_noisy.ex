@@ -110,3 +110,4 @@ defmodule MrNoisy do
 
     HTTPoison.post "https://slack.com/api/chat.postMessage", body, header
   end
+end
