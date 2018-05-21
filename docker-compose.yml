@@ -1,7 +1,0 @@
-version: '2'
-services:
-  mr_noisy:
-    image: phaelar/mr_noisy:0.1
-    env_file:
-      - docker_env
-    command: ["mix", "run"]

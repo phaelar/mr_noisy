@@ -14,7 +14,6 @@ defmodule MrNoisy.MixProject do
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      mod: {MrNoisy, []},
       extra_applications: [:logger]
     ]
   end

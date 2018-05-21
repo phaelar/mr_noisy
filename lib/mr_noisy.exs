@@ -12,9 +12,6 @@ defmodule MrNoisy do
       :world
 
   """
-  def start(_type, _args) do
-    do_it()
-  end
 
   def do_it do
     System.get_env("PROJECT_ID_LIST")
@@ -119,3 +116,5 @@ defmodule MrNoisy do
     HTTPoison.post "https://slack.com/api/chat.postMessage", body, header
   end
 end
+
+MrNoisy.do_it
