@@ -12,12 +12,11 @@ defmodule MrNoisy do
       :world
 
   """
-  def do_it do
-    IO.puts System.get_env("GITLAB_TOKEN")
-    IO.puts System.get_env("SLACK_TOKEN")
-    IO.puts System.get_env("CHANNEL")
-    IO.puts System.get_env("PROJECT_ID")
+  def start(_type, _args) do
+    do_it()
+  end
 
+  def do_it do
     get_open_merge_requests_from_gitlab()
     |> format_message_list
     |> format_list_to_single_message
