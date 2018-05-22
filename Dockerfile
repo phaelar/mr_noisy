@@ -1,4 +1,4 @@
-FROM elixir:latest
+FROM elixir:alpine
 LABEL MAINTAINER "Raphael Tan <raphaeltanyw@gmail.com>"
 
 WORKDIR /usr/app
