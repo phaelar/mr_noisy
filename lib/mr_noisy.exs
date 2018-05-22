@@ -138,10 +138,11 @@ defmodule MrNoisy do
   def post_to_messaging_clients(%{slack: slack_message, telegram: telegram_message}) do
     post_to_slack slack_message
     post_to_telegram telegram_message
+    {:ok}
   end
 
   def post_to_slack(message) do
-    channel_id = System.get_env("CHANNEL")
+    channel_id = System.get_env("SLACK_CHANNEL")
     header = [
       "Authorization": "Bearer #{System.get_env("SLACK_TOKEN")}",
       "Content-type": "application/json; charset=utf-8"
@@ -162,7 +163,7 @@ defmodule MrNoisy do
       "\"parse_mode\": \"markdown\"," <>
       "\"disable_web_page_preview\": true" <>
     "}"
-    IO.puts body
+
     HTTPoison.post "https://api.telegram.org/bot#{telegram_token}/sendMessage", body, header
   end
 end
