@@ -19,8 +19,7 @@ defmodule MrNoisy do
     |> get_open_merge_requests_from_gitlab
     |> Enum.sort_by(&(Map.get(&1, "created_at")))
     |> format_message_list
-    |> format_list_to_single_message
-    |> post_to_slack
+    |> post_to_messaging_clients
   end
 
   def get_open_merge_requests_from_gitlab([x | y]) do
@@ -56,7 +55,43 @@ defmodule MrNoisy do
     []
   end
 
-  def format_message_list([x | y]) do
+  def format_message_list(list) do
+    messages_for_slack = format_message_list_for_slack(list)
+    message_prefix_for_slack = "<!channel>\n*#{length(messages_for_slack)} Merge Requests awaiting review:*"
+    messages_for_telegram = format_message_list_for_telegram(list)
+    message_prefix_for_telegram = "*#{length(messages_for_telegram)} Merge Requests awaiting review:*"
+
+    %{
+      slack: "#{message_prefix_for_slack}\n#{Enum.join(messages_for_slack, "\n\n")}",
+      telegram: "#{message_prefix_for_telegram}\n#{Enum.join(messages_for_telegram, "\n\n")}"
+    }
+  end
+
+  # def format_message_list([]) do
+  #   %{slack: [], telegram: []}
+  # end
+
+  def format_message_list_for_telegram([x | y]) do
+    title = Map.get(x, "title", "")
+      |> String.replace("[", "")
+      |> String.replace("]", "")
+    web_url = Map.get(x, "web_url", "")
+    updated_at = Map.get(x, "updated_at", "")
+    created_at = Map.get(x, "created_at", "")
+    {:ok, converted_created_time, _} = DateTime.from_iso8601 created_at
+    {:ok, converted_updated_time, _} = DateTime.from_iso8601 updated_at
+    created_time_difference = parse_datetime_difference(converted_created_time)
+    updated_time_difference = parse_datetime_difference(converted_updated_time)
+    message = "→ [#{title}](#{web_url})\n _(Updated #{updated_time_difference} ago) (Opened #{created_time_difference} ago)_"
+
+    [message |format_message_list_for_telegram(y)]
+  end
+
+  def format_message_list_for_telegram([]) do
+    []
+  end
+
+  def format_message_list_for_slack([x | y]) do
     title = Map.get(x, "title", "")
     web_url = Map.get(x, "web_url", "")
     updated_at = Map.get(x, "updated_at", "")
@@ -67,10 +102,10 @@ defmodule MrNoisy do
     updated_time_difference = parse_datetime_difference(converted_updated_time)
     message = "> <#{web_url}|#{title}>\n> _(Updated #{updated_time_difference} ago) (Opened #{created_time_difference} ago)_"
 
-    [message |format_message_list(y)]
+    [message |format_message_list_for_slack(y)]
   end
 
-  def format_message_list([]) do
+  def format_message_list_for_slack([]) do
     []
   end
 
@@ -100,9 +135,9 @@ defmodule MrNoisy do
     "#{value} #{single_unit}"
   end
 
-  def format_list_to_single_message(message_list) do
-    message_prefix = "<!channel>\n*#{length(message_list)} Merge Requests awaiting review:*"
-    "#{message_prefix}\n#{Enum.join(message_list, "\n\n")}"
+  def post_to_messaging_clients(%{slack: slack_message, telegram: telegram_message}) do
+    post_to_slack slack_message
+    post_to_telegram telegram_message
   end
 
   def post_to_slack(message) do
@@ -114,6 +149,21 @@ defmodule MrNoisy do
     body = "{\"channel\":\"#{channel_id}\", \"text\": \"#{message}\"}"
 
     HTTPoison.post "https://slack.com/api/chat.postMessage", body, header
+  end
+
+  def post_to_telegram(message) do
+    telegram_group_id = System.get_env("TELEGRAM_CHANNEL")
+    telegram_token = System.get_env("TELEGRAM_TOKEN")
+    header = ["Content-type": "application/json; charset=utf-8"]
+
+    body = "{" <>
+      "\"chat_id\": \"#{telegram_group_id}\"," <>
+      "\"text\": \"#{message}\"," <>
+      "\"parse_mode\": \"markdown\"," <>
+      "\"disable_web_page_preview\": true" <>
+    "}"
+    IO.puts body
+    HTTPoison.post "https://api.telegram.org/bot#{telegram_token}/sendMessage", body, header
   end
 end
 
