@@ -17,6 +17,7 @@ defmodule MrNoisy do
     System.get_env("PROJECT_ID_LIST")
     |> String.split(",")
     |> get_open_merge_requests_from_gitlab
+    |> Enum.reject(&has_bot_label/1)
     |> Enum.sort_by(&(Map.get(&1, "created_at")))
     |> format_message_list
     |> post_to_messaging_clients
@@ -43,6 +44,12 @@ defmodule MrNoisy do
 
   def get_open_merge_requests_from_gitlab([]) do
     []
+  end
+
+  def has_bot_label(list) do
+    list
+    |> Map.get("labels")
+    |> Enum.member?("Bot")
   end
 
   def convert_gitlab_api_response({:ok, %HTTPoison.Response{status_code: 200, body: body}}) do
